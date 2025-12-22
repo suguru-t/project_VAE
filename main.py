@@ -6,8 +6,12 @@ from torchvision import datasets, transforms, utils
 import matplotlib.pyplot as plt
 from model import VAE
 
+
 # 設定
-DATASET_DIR = os.path.join(os.path.dirname(__file__), 'dataset')
+BASE_DIR = os.path.dirname(__file__)
+DATASET_DIR = os.path.join(BASE_DIR, 'dataset')
+RESULT_DIR = os.path.join(BASE_DIR, 'result')
+os.makedirs(RESULT_DIR, exist_ok=True)
 BATCH_SIZE = 64
 IMG_SIZE = 64
 LATENT_DIM = 128
@@ -34,8 +38,10 @@ def loss_function(recon_x, x, mu, logvar):
 vae = VAE(img_channels=3, img_size=IMG_SIZE, latent_dim=LATENT_DIM).to(DEVICE)
 optimizer = optim.Adam(vae.parameters(), lr=1e-3)
 
+
 # 学習
 vae.train()
+loss_history = []
 for epoch in range(EPOCHS):
     total_loss = 0
     for imgs, _ in train_loader:
@@ -46,7 +52,19 @@ for epoch in range(EPOCHS):
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
-    print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {total_loss/len(train_loader.dataset):.4f}")
+    avg_loss = total_loss / len(train_loader.dataset)
+    loss_history.append(avg_loss)
+    print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {avg_loss:.4f}")
+
+# 損失グラフの描画・保存
+plt.figure()
+plt.plot(range(1, EPOCHS+1), loss_history, marker='o')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('VAE Training Loss')
+plt.grid()
+plt.savefig(os.path.join(RESULT_DIR, 'loss_curve.png'))
+plt.close()
 
 # テスト画像の表示
 vae.eval()
@@ -59,7 +77,7 @@ imgs = imgs.to(DEVICE)
 with torch.no_grad():
     recon_imgs, _, _ = vae(imgs)
 
-# オリジナル画像と再構成画像を表示
+# オリジナル画像と再構成画像を表示・保存
 imgs = imgs.cpu()
 recon_imgs = recon_imgs.cpu()
 fig, axes = plt.subplots(2, 8, figsize=(16, 4))
@@ -71,4 +89,10 @@ for i in range(8):
 axes[0, 0].set_ylabel('Original')
 axes[1, 0].set_ylabel('Reconstructed')
 plt.tight_layout()
+plt.savefig(os.path.join(RESULT_DIR, 'reconstruction.png'))
 plt.show()
+
+# 画像を個別保存
+for i in range(8):
+    utils.save_image(imgs[i], os.path.join(RESULT_DIR, f'original_{i+1}.png'))
+    utils.save_image(recon_imgs[i], os.path.join(RESULT_DIR, f'reconstructed_{i+1}.png'))
