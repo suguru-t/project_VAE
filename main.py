@@ -12,15 +12,16 @@ BASE_DIR = os.path.dirname(__file__)
 DATASET_DIR = os.path.join(BASE_DIR, 'dataset')
 RESULT_DIR = os.path.join(BASE_DIR, 'result')
 os.makedirs(RESULT_DIR, exist_ok=True)
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 IMG_SIZE = 64
 LATENT_DIM = 128
-EPOCHS = 10
+EPOCHS = 30
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # データセットの前処理
 transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
+    transforms.RandomHorizontalFlip(),  # データ拡張
     transforms.ToTensor(),
 ])
 
@@ -36,7 +37,7 @@ def loss_function(recon_x, x, mu, logvar):
 
 # モデル・最適化
 vae = VAE(img_channels=3, img_size=IMG_SIZE, latent_dim=LATENT_DIM).to(DEVICE)
-optimizer = optim.Adam(vae.parameters(), lr=1e-3)
+optimizer = optim.Adam(vae.parameters(), lr=2e-3)  # 学習率を上げる
 
 
 # 学習
@@ -55,6 +56,9 @@ for epoch in range(EPOCHS):
     avg_loss = total_loss / len(train_loader.dataset)
     loss_history.append(avg_loss)
     print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {avg_loss:.4f}")
+
+# 学習後の重みを保存
+torch.save(vae.state_dict(), os.path.join(RESULT_DIR, 'vae.pth'))
 
 # 損失グラフの描画・保存
 plt.figure()
